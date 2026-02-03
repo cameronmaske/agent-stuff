@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "[gitleaks] docker not found; skipping gitleaks scan." >&2
+  exit 0
+fi
+
+docker run --rm -v "$(pwd)":/repo zricethezav/gitleaks:latest protect --staged --redact --source=/repo
