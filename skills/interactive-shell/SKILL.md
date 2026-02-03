@@ -1,0 +1,1 @@
+/home/cam/.npm-global/lib/node_modules/pi-interactive-shell/SKILL.md

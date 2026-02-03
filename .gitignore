@@ -1,0 +1,18 @@
+# Ignore everything by default
+*
+
+# Keep the ignore file itself
+!.gitignore
+
+# Allowlist entries
+!README.md
+!skills/
+!skills/**
+!themes/
+!themes/**
+!extensions/
+!extensions/**
+
+# Exclude dependencies
+**/node_modules/
+**/node_modules/**
