@@ -1,9 +1,96 @@
-#!/bin/sh
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "[gitleaks] docker not found; skipping gitleaks scan." >&2
+ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$ROOT_DIR"
+
+# Only inspect files staged for commit.
+staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+if [[ -z "${staged_files}" ]]; then
   exit 0
 fi
 
-docker run --rm -v "$(pwd)":/repo zricethezav/gitleaks:latest protect --staged --redact --source=/repo
+# 1) Hard-block known sensitive local config files, even if force-added.
+blocked_path_patterns=(
+  '^extensions/telegram/config\.json$'
+  '^extensions/telegram/managed-topics\.json$'
+  '^auth\.json$'
+  '^\.env(\..*)?$'
+)
+
+blocked_hits=()
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+  for pattern in "${blocked_path_patterns[@]}"; do
+    if [[ "$file" =~ $pattern ]]; then
+      blocked_hits+=("$file")
+      break
+    fi
+  done
+done <<< "$staged_files"
+
+if (( ${#blocked_hits[@]} > 0 )); then
+  echo "[guard] Blocked sensitive file(s) staged:" >&2
+  printf '  - %s\n' "${blocked_hits[@]}" | sort -u >&2
+  echo "[guard] Remove from index with: git restore --staged <file>" >&2
+  exit 1
+fi
+
+# 2) Scan newly added lines in staged diff for high-signal secret patterns.
+pattern_names=(
+  "private_key"
+  "aws_access_key_id"
+  "github_pat"
+  "gitlab_pat"
+  "openai_key"
+  "google_api_key"
+  "slack_token"
+  "telegram_bot_token"
+)
+
+pattern_regexes=(
+  '-----BEGIN (RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----'
+  '\bAKIA[0-9A-Z]{16}\b'
+  '\b(ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{40,})\b'
+  '\bglpat-[A-Za-z0-9\-_]{20,}\b'
+  '\bsk-[A-Za-z0-9\-_]{20,}\b'
+  '\bAIza[0-9A-Za-z\-_]{35}\b'
+  '\bxox[baprs]-[A-Za-z0-9-]{10,}\b'
+  '\b[0-9]{6,12}:[A-Za-z0-9_-]{20,}\b'
+)
+
+secret_hits=()
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+
+  # Added lines only (avoid scanning untouched historical content).
+  added_lines="$(git diff --cached --no-color -U0 -- "$file" | grep -E '^\+[^+]' || true)"
+  [[ -z "$added_lines" ]] && continue
+
+  for i in "${!pattern_names[@]}"; do
+    if grep -E -q "${pattern_regexes[$i]}" <<< "$added_lines"; then
+      secret_hits+=("$file (${pattern_names[$i]})")
+    fi
+  done
+done <<< "$staged_files"
+
+if (( ${#secret_hits[@]} > 0 )); then
+  echo "[guard] Potential secret(s) detected in staged changes:" >&2
+  printf '  - %s\n' "${secret_hits[@]}" | sort -u >&2
+  echo "[guard] Please remove/redact before committing." >&2
+  exit 1
+fi
+
+# 3) Keep gitleaks as deep scan fallback (same behavior as before).
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --source="$ROOT_DIR"
+  exit 0
+fi
+
+if command -v docker >/dev/null 2>&1; then
+  docker run --rm -v "$ROOT_DIR":/repo zricethezav/gitleaks:latest protect --staged --redact --source=/repo
+  exit 0
+fi
+
+echo "[guard] gitleaks not found (and docker unavailable); skipped deep secret scan." >&2
+exit 0

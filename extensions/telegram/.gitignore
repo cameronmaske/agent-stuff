@@ -1,0 +1,15 @@
+# Local Telegram bridge config/state
+config.json
+config.json.tmp
+managed-topics.json
+managed-topics.json.tmp
+
+# Runtime daemon logs
+daemon.log
+daemon.log.*
+
+# Optional local whisper model downloads
+whisper.cpp/models/*.bin
+
+# Local whisper.cpp clone/vendor tree (keep out of this repo)
+whisper.cpp/

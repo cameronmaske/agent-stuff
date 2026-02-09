@@ -1,25 +1,32 @@
-# Pi Agent Tools
+# Agent Tools 
+
+This folder contains custom **skills** and **extensions** that enhance Pi for everyday coding work.
 
 ## Skills
 
-- [brave-search](skills/brave-search) — Web search and content extraction via Brave Search API. Use for searching documentation, facts, or any web content. Lightweight, no browser required.
-- [browser-tools](skills/browser-tools) — Interactive browser automation via Chrome DevTools Protocol from WSL to a Windows Chrome instance. Use when you need to interact with web pages, test frontends, or when user interaction with a visible browser is required.
-- [github](skills/github) — Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.
-- [gt-split](skills/gt-split) — Split a Graphite branch into multiple single-commit branches using `gt split`. Includes planning, TUI interaction guidance, and recovery procedures.
-- [interactive-shell](skills/interactive-shell) — Cheat sheet + workflow for launching interactive coding-agent CLIs (Claude Code, Gemini CLI, Codex CLI, Cursor CLI, and pi itself) via the interactive_shell overlay. The overlay is for interactive supervision only - headless commands should use the bash tool instead.
-- [ruff-review](skills/ruff-review) — Run Ruff on a folder, list lint issues, and guide a fix-or-ignore review flow with the user.
-- [uv](skills/uv) — Use `uv` instead of pip/python/venv. Run scripts with `uv run script.py`, add deps with `uv add`, use inline script metadata for standalone scripts.
+Skills are instruction packs Pi can load when a task matches a specific workflow.
+
+- **github** — Guidance for working with GitHub via `gh` (issues, PRs, CI runs, API queries).
+- **interactive-shell** — Best practices for delegating to interactive coding CLIs (pi, Claude, Gemini, Codex, etc.).
+- **uv** — Python workflows with `uv` (`uv run`, `uv add`, script metadata).
 
 ## Extensions
 
-- [copy-code](extensions/copy-code.ts) — Copy code blocks from the conversation to the clipboard (picker + optional hints).
-- [files](extensions/files.ts) — `/files` and `/diff` picker to browse repo files and run quick actions (open, reveal, edit, diff).
-- [handoff](extensions/handoff.ts) — Generate a focused prompt to continue work in a new session.
-- [interactive-shell](extensions/interactive-shell.ts) — Run interactive `!` commands with full terminal access while the TUI suspends.
-- [oracle](extensions/oracle.ts) — Ask a secondary model for a second opinion (optionally with file context).
-- [plan-mode](extensions/plan-mode.ts) — Plan manager with `/plan` UI, planning mode, and `.pi/plans` storage.
-- [post-edit-format](extensions/post-edit-format.ts) — Auto-format files after edits (ruff for Python, biome for frontend).
-- [review](extensions/review.ts) — `/review` workflows for PRs, branches, commits, or uncommitted changes.
-- [todos](extensions/todos.ts) — File-based todo manager with `/todos` UI and tool API.
-- [pi-annotate](extensions/pi-annotate) — Visual UI annotation via Chrome extension + `/annotate` (fork of https://github.com/nicobailon/pi-annotate, adapted for WSL with Chrome on Windows).
-- [powerline-footer](extensions/powerline-footer) — Powerline-style status bar, welcome overlay, and AI-generated “working vibes” (customized fork of https://github.com/nicobailon/pi-powerline-footer that works with https://www.npmjs.com/package/@marckrenn/pi-sub-core).
+Extensions add tools, commands, UI, and automations inside Pi.
+
+- **annotate** — Visual UI annotation in Chrome (select elements, attach comments, include screenshots).
+- **browser** — Browser automation and inspection in a managed Chrome session.
+- **copy** — Quickly copy code snippets from the conversation.
+- **files** — File picker and quick file actions.
+- **format** — Automatic post-edit formatting/lint-fix for supported files.
+- **handoff** — Generate a focused handoff prompt for a fresh session.
+- **interactive-shell** — Supports interactive terminal commands from Pi.
+- **plan-mode** — Plan creation and execution workflow support.
+- **powerline** — Enhanced statusline/welcome UI plus themed “working vibe” messages.
+- **review** — Structured code review workflows.
+- **session-breakdown** — Interactive session usage breakdown (activity, tokens, cost).
+- **telegram** — Bridge a Pi session to Telegram (topic-based flow).
+- **todos** — File-based todo/task management.
+- **web-access** — Web search + URL/content retrieval tools.
+
+If you want, I can also add a short “common commands” section so this README doubles as a quick-start cheat sheet.

@@ -102,10 +102,10 @@ const UNCOMMITTED_PROMPT =
 	"Review the current code changes (staged, unstaged, and untracked files) and provide prioritized findings.";
 
 const BASE_BRANCH_PROMPT_WITH_MERGE_BASE =
-	"Review the code changes against the base branch '{baseBranch}'. The merge base commit for this comparison is {mergeBaseSha}. Run `git diff {mergeBaseSha}` to inspect the changes relative to {baseBranch}. Provide prioritized, actionable findings.";
+	"Review the code changes against the base branch '{baseBranch}'. The merge base commit for this comparison is {mergeBaseSha}. Run `git diff {baseBranch}...HEAD` (or `git diff {mergeBaseSha}..HEAD`) to inspect the changes that would be merged. Provide prioritized, actionable findings.";
 
 const BASE_BRANCH_PROMPT_FALLBACK =
-	"Review the code changes against the base branch '{branch}'. Start by finding the merge diff between the current branch and {branch}'s upstream e.g. (`git merge-base HEAD \"$(git rev-parse --abbrev-ref \"{branch}@{upstream}\")\"`), then run `git diff` against that SHA to see what changes we would merge into the {branch} branch. Provide prioritized, actionable findings.";
+	"Review the code changes against the base branch '{branch}'. Start by finding the merge base between the current branch and {branch}'s upstream e.g. (`git merge-base HEAD \"$(git rev-parse --abbrev-ref \"{branch}@{upstream}\")\"`), then run `git diff <merge-base>..HEAD` (or `git diff {branch}...HEAD`) to see what changes we would merge into the {branch} branch. Provide prioritized, actionable findings.";
 
 const COMMIT_PROMPT_WITH_TITLE =
 	'Review the code changes introduced by commit {sha} ("{title}"). Provide prioritized, actionable findings.';
@@ -113,10 +113,10 @@ const COMMIT_PROMPT_WITH_TITLE =
 const COMMIT_PROMPT = "Review the code changes introduced by commit {sha}. Provide prioritized, actionable findings.";
 
 const PULL_REQUEST_PROMPT =
-	'Review pull request #{prNumber} ("{title}") against the base branch \'{baseBranch}\'. The merge base commit for this comparison is {mergeBaseSha}. Run `git diff {mergeBaseSha}` to inspect the changes that would be merged. Provide prioritized, actionable findings.';
+	'Review pull request #{prNumber} ("{title}") against the base branch \'{baseBranch}\'. The merge base commit for this comparison is {mergeBaseSha}. Run `git diff {baseBranch}...HEAD` (or `git diff {mergeBaseSha}..HEAD`) to inspect the changes that would be merged. Provide prioritized, actionable findings.';
 
 const PULL_REQUEST_PROMPT_FALLBACK =
-	'Review pull request #{prNumber} ("{title}") against the base branch \'{baseBranch}\'. Start by finding the merge base between the current branch and {baseBranch} (e.g., `git merge-base HEAD {baseBranch}`), then run `git diff` against that SHA to see the changes that would be merged. Provide prioritized, actionable findings.';
+	'Review pull request #{prNumber} ("{title}") against the base branch \'{baseBranch}\'. Start by finding the merge base between the current branch and {baseBranch} (e.g., `git merge-base HEAD {baseBranch}`), then run `git diff <merge-base>..HEAD` (or `git diff {baseBranch}...HEAD`) to see the changes that would be merged. Provide prioritized, actionable findings.';
 
 const STACK_PROMPT =
 	"Review the current stacked branch '{currentBranch}' against its parent branch '{parentBranch}'. Run `git diff {parentBranch}..HEAD` to inspect the changes introduced in this branch of the stack. Provide prioritized, actionable findings.";
@@ -365,13 +365,40 @@ async function getPrInfo(pi: ExtensionAPI, prNumber: number): Promise<{ baseBran
 }
 
 /**
+ * Detect fast-forward failures during PR checkout
+ */
+function isDivergedCheckoutError(output: string): boolean {
+	const text = output.toLowerCase();
+	return (
+		text.includes("not possible to fast-forward") ||
+		text.includes("diverging branches can't be fast-forwarded") ||
+		text.includes("diverging branches cannot be fast-forwarded")
+	);
+}
+
+/**
  * Checkout a PR using GitHub CLI
  */
-async function checkoutPr(pi: ExtensionAPI, prNumber: number): Promise<{ success: boolean; error?: string }> {
+async function checkoutPr(
+	pi: ExtensionAPI,
+	prNumber: number,
+): Promise<{ success: boolean; forced?: boolean; error?: string }> {
 	const { stdout, stderr, code } = await pi.exec("gh", ["pr", "checkout", String(prNumber)]);
 
 	if (code !== 0) {
-		return { success: false, error: stderr || stdout || "Failed to checkout PR" };
+		const output = [stderr, stdout].filter((value) => value && value.trim()).join("\n");
+		if (output && isDivergedCheckoutError(output)) {
+			const forceResult = await pi.exec("gh", ["pr", "checkout", String(prNumber), "--force"]);
+			if (forceResult.code === 0) {
+				return { success: true, forced: true };
+			}
+			return {
+				success: false,
+				error: forceResult.stderr || forceResult.stdout || "Failed to checkout PR with --force",
+			};
+		}
+
+		return { success: false, error: output || "Failed to checkout PR" };
 	}
 
 	return { success: true };
@@ -842,6 +869,13 @@ export default function reviewExtension(pi: ExtensionAPI) {
 			return null;
 		}
 
+		if (checkoutResult.forced) {
+			ctx.ui.notify(
+				`Local branch '${prInfo.headBranch}' diverged; reset to PR head with --force.`,
+				"warning",
+			);
+		}
+
 		ctx.ui.notify(`Checked out PR #${prNumber} (${prInfo.headBranch})`, "info");
 
 		return {
@@ -1043,6 +1077,13 @@ export default function reviewExtension(pi: ExtensionAPI) {
 		if (!checkoutResult.success) {
 			ctx.ui.notify(`Failed to checkout PR: ${checkoutResult.error}`, "error");
 			return null;
+		}
+
+		if (checkoutResult.forced) {
+			ctx.ui.notify(
+				`Local branch '${prInfo.headBranch}' diverged; reset to PR head with --force.`,
+				"warning",
+			);
 		}
 
 		ctx.ui.notify(`Checked out PR #${prNumber} (${prInfo.headBranch})`, "info");
