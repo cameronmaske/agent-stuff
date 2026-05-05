@@ -1,0 +1,31 @@
+{
+  "name": "@cameronmaske/agent-stuff",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Personal Pi extensions, skills, and themes.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent"
+  ],
+  "workspaces": [
+    "extensions/annotate",
+    "extensions/browser/tools",
+    "extensions/powerline",
+    "extensions/telegram",
+    "extensions/web-access"
+  ],
+  "pi": {
+    "extensions": [
+      "extensions"
+    ],
+    "skills": [
+      "skills",
+      "extensions/web-access/skills"
+    ],
+    "themes": [
+      "themes"
+    ]
+  }
+}

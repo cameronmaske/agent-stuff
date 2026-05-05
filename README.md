@@ -29,4 +29,18 @@ Extensions add tools, commands, UI, and automations inside Pi.
 - **todos** — File-based todo/task management.
 - **web-access** — Web search + URL/content retrieval tools.
 
-If you want, I can also add a short “common commands” section so this README doubles as a quick-start cheat sheet.
+## Package layout
+
+This repository is installed as a single Pi package:
+
+```bash
+pi install https://github.com/cameronmaske/agent-stuff
+```
+
+Pi lists it as one package source, but the root `package.json` exposes multiple resources via the `pi` manifest:
+
+- `extensions/` → extension entrypoints
+- `skills/` and `extensions/web-access/skills/` → skills
+- `themes/` → custom themes such as `mono-dark-flat`
+
+Runtime dependencies are managed through npm workspaces. After clone/update, Pi runs `npm install` from the package root, so nested extension dependencies do not need committed `node_modules/` directories.
